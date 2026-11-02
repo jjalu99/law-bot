@@ -21,7 +21,8 @@ if prompt := st.chat_input("질문을 입력하세요 (예: 정기안전진단 �
         st.markdown(prompt)
     
     with st.chat_message("assistant"):
-        with st.spinner("🔍 국가법령정보센터 검색 및 답변 생성 중..."):
+        # 로딩 중 안내 문구도 변경되었습니다.
+        with st.spinner("🔍 국가법령정보센터 검색 및 답변 생성 중... (최대 3분 소요)"):
             try:
                 search_query = "건축법"
                 if "안전진단" in prompt or "시특법" in prompt or "시설물" in prompt:
@@ -61,17 +62,19 @@ if prompt := st.chat_input("질문을 입력하세요 (예: 정기안전진단 �
                     "contents": [{"parts": [{"text": combined_prompt}]}]
                 }
                 
-                # 💡 여기가 수정된 부분입니다: timeout=15 를 timeout=60 으로 늘렸습니다.
-                gemini_response = requests.post(gemini_url, headers=headers, json=data, timeout=60)
+                # 💡 타이머가 180초(3분)로 연장되었습니다.
+                gemini_response = requests.post(gemini_url, headers=headers, json=data, timeout=180)
                 
                 if gemini_response.status_code == 200:
                     result = gemini_response.json()
                     answer = result['candidates'][0]['content']['parts'][0]['text']
                     st.markdown(answer)
                 else:
-                    st.error(f"구글 서버 오류: {gemini_response.text}")
+                    st.error(f"⚠️ 구글 서버 오류 (코드 {gemini_response.status_code}): {gemini_response.text}")
                     
             except requests.exceptions.Timeout:
-                st.error("서버 응답 시간이 60초를 초과했습니다. 다시 질문해 주세요.")
+                st.error("⏳ 서버 응답 시간이 3분(180초)을 초과했습니다. 질문 내용이 너무 방대하거나 구글 서버가 혼잡할 수 있으니 질문을 약간 수정하여 다시 시도해 주세요.")
+            except requests.exceptions.ConnectionError:
+                st.error("📡 서버 연결에 실패했습니다. 챗봇 서버의 인터넷 통신 상태가 불안정합니다.")
             except Exception as e:
-                st.error(f"오류가 발생했습니다: {e}")
+                st.error(f"❌ 예상치 못한 오류가 발생했습니다: {e}")
